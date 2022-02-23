@@ -1,5 +1,5 @@
 from this import s
-from flask import Flask, request, render_template, redirect, flash
+from flask import Flask, request, render_template, redirect, flash, session
 from surveys import satisfaction_survey
 from flask_debugtoolbar import DebugToolbarExtension
 
@@ -8,8 +8,6 @@ app.config['SECRET_KEY'] = 'secret'
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 
 debug = DebugToolbarExtension(app)
-
-responses = []
 
 
 @app.route('/')
@@ -26,13 +24,15 @@ def home_page():
 def show_question(question_id):
     """Show the question with given integer id"""
 
-    if len(responses) == len(satisfaction_survey.questions):
+    answers = session['answers']
+
+    if len(answers) == len(satisfaction_survey.questions):
         flash('Invalid Question, Cannot Access')
         return redirect('/thanks')
 
-    if question_id != len(responses):
+    if question_id != len(answers):
         flash('Invalid Question, Cannot Access')
-        return redirect(f'/questions/{len(responses)}')
+        return redirect(f'/questions/{len(answers)}')
 
     question = satisfaction_survey.questions[question_id].question
     answers = satisfaction_survey.questions[question_id].choices
@@ -40,12 +40,24 @@ def show_question(question_id):
     return render_template('question.html', question=question, answers=answers)
 
 
+@app.route('/set_session', methods=['POST'])
+def set_session():
+    """Initialize session and create empty list to store answers in session"""
+
+    session['answers'] = []
+
+    return redirect(f'/questions/{0}')
+
+
 @app.route('/answers', methods=['POST'])
 def handle_answer():
     """Save answer to response list and redirect to next question"""
 
-    responses.append(request.form['answer'])
-    next_question = len(responses)
+    answers = session['answers']
+    answers.append(request.form['answer'])
+    session['answers'] = answers
+
+    next_question = len(answers)
 
     if next_question == len(satisfaction_survey.questions):
         return redirect('/thanks')
